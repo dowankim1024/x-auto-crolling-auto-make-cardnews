@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model SourceAccount {
+  id          String   @id @default(cuid())
+  platform    String
+  handle      String   @unique
+  displayName String?
+  sportType   String
+  sourceTier  Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rawPosts RawPost[]
+}
+
+model RawPost {
+  id              String        @id @default(cuid())
+  sourceAccountId String?
+  externalPostId  String        @unique
+  originalText    String
+  originalUrl     String
+  postedAt        DateTime
+  language        String?
+  rawJson         Json?
+  status          RawPostStatus @default(NEW)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  sourceAccount SourceAccount?  @relation(fields: [sourceAccountId], references: [id])
+  translation   TranslatedPost?
+  articleDrafts ArticleDraft[]
+
+  @@index([sourceAccountId])
+  @@index([postedAt])
+  @@index([status])
+}
+
+model TranslatedPost {
+  id                   String   @id @default(cuid())
+  rawPostId            String   @unique
+  translatedText       String
+  oneLineSummary       String
+  shortSummary         String?
+  detectedTeams        String[]
+  detectedPlayers      String[]
+  detectedKeywords     String[]
+  suggestedPostType    PostType
+  suggestedRumorStatus String?
+  riskFlags            String[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  rawPost RawPost @relation(fields: [rawPostId], references: [id], onDelete: Cascade)
+}
+
+model ArticleDraft {
+  id               String      @id @default(cuid())
+  rawPostId        String
+  postType         PostType
+  title            String
+  subtitle         String?
+  summary          String
+  body             String
+  sourceName       String?
+  sourceUrl        String
+  rumorStatus      String?
+  teamTags         String[]
+  playerTags       String[]
+  hashtags         String[]
+  pollQuestion     String?
+  pollAgreeText    String?
+  pollDisagreeText String?
+  status           DraftStatus @default(DRAFT)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  rawPost        RawPost         @relation(fields: [rawPostId], references: [id], onDelete: Cascade)
+  cardNewsDrafts CardNewsDraft[]
+
+  @@index([rawPostId])
+  @@index([status])
+}
+
+model ImageAsset {
+  id                    String             @id @default(cuid())
+  provider              ImageProvider
+  providerAssetId       String?
+  title                 String?
+  imageUrl              String
+  thumbnailUrl          String?
+  sourcePageUrl         String?
+  authorName            String?
+  licenseName           String?
+  licenseUrl            String?
+  creditText            String
+  licenseSafety         ImageLicenseSafety
+  commercialUseAllowed  Boolean            @default(false)
+  modificationAllowed   Boolean            @default(false)
+  requiresAttribution   Boolean            @default(true)
+  requiresShareAlike    Boolean            @default(false)
+  hasIdentifiablePerson Boolean            @default(false)
+  hasLogoOrTrademark    Boolean            @default(false)
+  usageAllowed          Boolean            @default(false)
+  adminApproved         Boolean            @default(false)
+  tags                  String[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  cardSlides CardSlide[]
+
+  @@index([provider])
+  @@index([licenseSafety])
+  @@index([adminApproved])
+}
+
+model CardNewsDraft {
+  id                String         @id @default(cuid())
+  articleDraftId    String
+  title             String
+  caption           String
+  instagramHashtags String[]
+  status            CardNewsStatus @default(DRAFT)
+  renderedImageUrls String[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  articleDraft ArticleDraft @relation(fields: [articleDraftId], references: [id], onDelete: Cascade)
+  slides       CardSlide[]
+
+  @@index([articleDraftId])
+  @@index([status])
+}
+
+model CardSlide {
+  id               String   @id @default(cuid())
+  cardNewsDraftId  String
+  order            Int
+  templateType     String
+  headline         String
+  body             String?
+  footnote         String?
+  imageAssetId     String?
+  renderedImageUrl String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cardNewsDraft CardNewsDraft @relation(fields: [cardNewsDraftId], references: [id], onDelete: Cascade)
+  imageAsset    ImageAsset?   @relation(fields: [imageAssetId], references: [id])
+
+  @@unique([cardNewsDraftId, order])
+  @@index([imageAssetId])
+}
+
+enum RawPostStatus {
+  NEW
+  TRANSLATING
+  TRANSLATED
+  ACCEPTED
+  REJECTED
+  IGNORED
+  ERROR
+}
+
+enum PostType {
+  GENERAL
+  POLL
+  TODAY_DEBATE
+}
+
+enum DraftStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ImageProvider {
+  WIKIMEDIA_COMMONS
+  UNSPLASH
+  PEXELS
+  PIXABAY
+  INTERNAL_ASSET
+  ADMIN_UPLOAD
+}
+
+enum ImageLicenseSafety {
+  SAFE_NO_RESTRICTIONS
+  SAFE_WITH_ATTRIBUTION
+  REVIEW_SAME_LICENSE
+  BLOCKED_OTHER
+  UNKNOWN
+}
+
+enum CardNewsStatus {
+  DRAFT
+  IMAGE_PENDING
+  READY_TO_RENDER
+  RENDERED
+  APPROVED
+  PUBLISHED
+}
