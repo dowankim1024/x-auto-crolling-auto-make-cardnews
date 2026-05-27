@@ -1,0 +1,1 @@
+ALTER TYPE "ImageProvider" ADD VALUE 'GETTY_IMAGES';

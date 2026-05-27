@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
 import { NewRawPostForm } from "./new-raw-post-form";
+import { RawPostActions } from "./raw-post-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,20 @@ export default async function RawPostsPage() {
     include: {
       sourceAccount: true,
       translation: true,
+      articleDrafts: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+        include: {
+          cardNewsDrafts: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 1,
+          },
+        },
+      },
     },
   });
 
@@ -57,31 +72,57 @@ export default async function RawPostsPage() {
               </p>
             ) : (
               <div className="divide-y divide-zinc-200">
-                {rawPosts.map((post) => (
-                  <article key={post.id} className="grid gap-3 p-5">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                      <span className="font-medium text-zinc-800">
-                        {post.sourceAccount?.handle
-                          ? `@${post.sourceAccount.handle}`
-                          : "Manual"}
-                      </span>
-                      <span>{post.status}</span>
-                      <span>{post.postedAt.toLocaleString("ko-KR")}</span>
-                      {post.language ? <span>{post.language}</span> : null}
-                    </div>
-                    <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-6">
-                      {post.originalText}
-                    </p>
-                    <a
-                      href={post.originalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="break-all text-xs text-zinc-500 underline underline-offset-4"
+                {rawPosts.map((post) => {
+                  const articleDraft = post.articleDrafts[0];
+                  const cardNewsDraft = articleDraft?.cardNewsDrafts[0];
+
+                  return (
+                    <article
+                      key={post.id}
+                      className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto]"
                     >
-                      {post.originalUrl}
-                    </a>
-                  </article>
-                ))}
+                      <div className="grid gap-3">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                          <span className="font-medium text-zinc-800">
+                            {post.sourceAccount?.handle
+                              ? `@${post.sourceAccount.handle}`
+                              : "Manual"}
+                          </span>
+                          <span>{post.status}</span>
+                          <span>{post.postedAt.toLocaleString("ko-KR")}</span>
+                          {post.language ? <span>{post.language}</span> : null}
+                        </div>
+                        <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-6">
+                          {post.originalText}
+                        </p>
+                        <a
+                          href={post.originalUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="break-all text-xs text-zinc-500 underline underline-offset-4"
+                        >
+                          {post.originalUrl}
+                        </a>
+                        {articleDraft ? (
+                          <div className="grid gap-1 border-l-2 border-zinc-200 pl-3">
+                            <p className="text-sm font-medium text-zinc-900">
+                              {articleDraft.title}
+                            </p>
+                            <p className="line-clamp-2 text-xs leading-5 text-zinc-600">
+                              {articleDraft.summary}
+                            </p>
+                            {cardNewsDraft ? (
+                              <p className="text-xs text-zinc-500">
+                                카드뉴스: {cardNewsDraft.status}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                      <RawPostActions rawPostId={post.id} status={post.status} />
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>

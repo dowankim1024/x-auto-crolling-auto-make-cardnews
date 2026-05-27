@@ -37,6 +37,7 @@ model RawPost {
   sourceAccount SourceAccount?  @relation(fields: [sourceAccountId], references: [id])
   translation   TranslatedPost?
   articleDrafts ArticleDraft[]
+  aiBriefing    AiBriefing?
 
   @@index([sourceAccountId])
   @@index([postedAt])
@@ -159,6 +160,77 @@ model CardSlide {
   @@index([imageAssetId])
 }
 
+model AiBriefing {
+  id               String                  @id @default(cuid())
+  rawPostId        String                  @unique
+  title            String
+  summaryShort     String
+  summaryDetail    String
+  teamTags         String[]
+  briefingStatus   FootballBriefingStatus
+  route            AiBriefingRoute
+  decisionReason   String
+  aiModel          String
+  aiRawResponse    Json
+  processingStatus AiProcessingStatus      @default(COMPLETED)
+  errorMessage     String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  rawPost          RawPost           @relation(fields: [rawPostId], references: [id], onDelete: Cascade)
+  publishQueueItem PublishQueueItem?
+  reviewQueueItem  ReviewQueueItem?
+
+  @@index([briefingStatus])
+  @@index([route])
+  @@index([processingStatus])
+  @@index([createdAt])
+}
+
+model PublishQueueItem {
+  id              String                  @id @default(cuid())
+  aiBriefingId    String                  @unique
+  status          PublishQueueStatus      @default(READY)
+  title           String
+  summaryShort    String
+  summaryDetail   String
+  teamTags        String[]
+  briefingStatus  FootballBriefingStatus
+  publishedAt     DateTime?
+  publishTarget   String?
+  externalPostUrl String?
+  errorMessage    String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  aiBriefing AiBriefing @relation(fields: [aiBriefingId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ReviewQueueItem {
+  id             String                  @id @default(cuid())
+  aiBriefingId   String                  @unique
+  status         ReviewQueueStatus       @default(PENDING)
+  reason         String
+  title          String
+  summaryShort   String
+  summaryDetail  String
+  teamTags       String[]
+  briefingStatus FootballBriefingStatus
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  aiBriefing AiBriefing @relation(fields: [aiBriefingId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([reason])
+  @@index([createdAt])
+}
+
 enum RawPostStatus {
   NEW
   TRANSLATING
@@ -188,6 +260,7 @@ enum ImageProvider {
   UNSPLASH
   PEXELS
   PIXABAY
+  GETTY_IMAGES
   INTERNAL_ASSET
   ADMIN_UPLOAD
 }
@@ -206,5 +279,38 @@ enum CardNewsStatus {
   READY_TO_RENDER
   RENDERED
   APPROVED
+  PUBLISHED
+}
+
+enum FootballBriefingStatus {
+  OFFICIAL
+  RUMOUR
+  UPDATE
+  CONFIRMED
+  DENIED
+}
+
+enum AiBriefingRoute {
+  AUTO_PUBLISH
+  REVIEW_QUEUE
+  IGNORE
+}
+
+enum AiProcessingStatus {
+  COMPLETED
+  ERROR
+}
+
+enum PublishQueueStatus {
+  READY
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum ReviewQueueStatus {
+  PENDING
+  APPROVED
+  REJECTED
   PUBLISHED
 }
